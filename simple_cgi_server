@@ -1,0 +1,71 @@
+#!/usr/bin/python
+
+import sys
+import os
+import subprocess
+import threading
+import socket
+import wsgiref.simple_server
+
+class SilentWSGIRequestHandler(wsgiref.simple_server.WSGIRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+class GitHttpBackend(object):
+    def __init__(self, git_dir):
+        self.git_project_root = os.path.dirname(git_dir)
+        self.server = None
+
+    def __call__(self, environ, start_response):
+        cgienv = os.environ.copy()
+        for (k,v) in environ.iteritems():
+            if isinstance(v, str):
+                cgienv[k] = v
+        cgienv["GIT_PROJECT_ROOT"] = self.git_project_root
+        cgienv["GIT_HTTP_EXPORT_ALL"] = "ON"
+        cgienv["REMOTE_USER"] = "git-remote-freenet"
+        cmd = ("git", "http-backend", )
+        p = subprocess.Popen(cmd, env=cgienv,
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        if environ.get("CONTENT_LENGTH",None):
+            data = environ["wsgi.input"].read(int(environ["CONTENT_LENGTH"]))
+            p.stdin.write(data)
+        p.stdin.close()
+        headers = []
+        header = p.stdout.readline()
+        while header.strip():
+            headers.append(header.split(":", 1))
+            header = p.stdout.readline()
+        headers = [(k.strip(), v.strip()) for (k,v) in headers]
+        start_response("200 OK", headers)
+        return [p.stdout.read()]
+
+    def _make_server(self, addr, port):
+        make = wsgiref.simple_server.make_server
+        return make(addr, port, self, handler_class=SilentWSGIRequestHandler)
+                                                 
+    def run(self):
+        port = 48154
+        while True:
+            try:
+              self.server = self._make_server("127.0.0.1", port)
+              break
+            except socket.error:
+              print>>sys.stderr, "port " + port + " already in use"
+              exit(1)
+        self.server.serve_forever()
+
+    def start(self):
+        t = threading.Thread(target=self.run)
+        t.start()
+        return t
+
+    def stop(self):
+        self.server.shutdown()
+
+argv = sys.argv
+git_repo_dir = argv[1]
+print>>sys.stderr, "starting simple_cgi_server at port 48154 and serving " + git_repo_dir
+backend = GitHttpBackend(git_repo_dir)
+t = backend.start()
+

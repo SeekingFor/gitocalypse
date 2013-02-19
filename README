@@ -1,0 +1,80 @@
+gitocalypse allows to use freenet://USK@.. and infocalypse://USK@.. as git remotes
+
+dependancies:
+--git
+--mercurial
+--infocalypse (USK@-bk9znYylSCOEDuSWAvo5m72nUeMxKkDmH3nIqAeI-0,qfu5H3FZsZ-5rfNBY-jQHS5Ke7AT2PtJWd13IrPZjcg,AQACAAE/feral_codewright/28/infocalypse_howto.html)
+--hg-git (http://hg-git.github.com/)
+--bash
+
+installation:
+place gitocalypse somewhere and do:
+ln -s /your/path/to/gitocalypse /usr/bin/git-remote-freenet
+ln -s /your/path/to/gitocalypse /usr/bin/git-remote-infocalypse
+ln -s /your/path/to/simple_cgi_server /usr/bin/
+
+testing:
+mkdir jfniki; cd jfniki; git init;
+git remote add --tags djk freenet://USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/jfniki.R1/36;
+git remote add --tags github git@github.com:yourUserName/yourRepo.git
+git pull djk master;
+gitk;
+git push github master;
+profit \o/
+you can now work in your default git style, pushing to 'github', pulling from 'djk' or creating other remotes.
+please keep in mind that you can't push to 'djk' as you don't have the private insert key.
+
+if you want to push this repo into an own infocalypse repo you have to create it in the first place:
+cd .git/infocalypse/djk/;
+hg fn-create --verbose --uri USK@your_insert_key/testingSomeStuff.R1/0;
+cd ../../../
+git remote add --tags freenet_push freenet://USK@your_insert_key/testingSomeStuff.R1/0
+now you can do normal git pushes like
+git push freenet_push master;
+
+you need a hg mirror of your git repo to be able to use fn-create (like in the previous example the "upstream" repo from djk).
+if you don't have one yet you can do:
+mkdir dummy;
+cd dummy;
+hg clone /path/to/your/git_repo .;
+hg fn-create --verbose --uri USK@/someCrazyName.R1/0; (uses your default insert key) or:
+hg fn-create --verbose --uri USK@yourInsertKey/someCrazyName.R1/0;
+cd ..;
+rm -rf dummy;
+cd /path/to/your/git_repo
+git remote add --tags fn_push freenet://USK@/someCrazyName.R1/0 (should use your default insert key) or:
+git remote add --tags fn_push freenet://USK@yourInsertKey/someCrazyName.R1/0
+
+random hints:
+- you can also use infocalypse:// instead of freenet://
+- every freenet repo you want to push to just needs a single hg fn-create.
+  - if you want to push to your infocalypse repo from another location, just add the remote and push to it.
+- for your infocalypse repos always use .R1 as last part of the repo name. infocalypse will then mirror the top block so there is one at .R0/x and another one at .R1/x
+- you don't need to update editions of freenet repos, every pull and push first tries to find the latest edition.
+- for a more verbose infocalypse output: in gitocalypse search for lines saying fn-pull or fn-push and add the argument --verbose before the --uri argument
+- you should use current versions of mercurial and git. if you use debian stable use the backports repo for both
+- installing gitocalypse does not require to link into /usr/bin, actually it does not matter at all as long as they are available a directory from PATH
+  - the link to gitorious need to be named git-remote-freenet if you want to use freenet:// and git-remote-infocalypse if you want to use infocalypse://
+
+general advise for anonymous coders:
+- be aware of timezone leaks in your commits, git and mercurial save the configured timezone of your machine in every commit.
+  - you can force git to use UTC with TZ=UTC git commit -a --date="`date -u +'%s'`"
+  - likewise with hg: hg commit --date "`date -u +'%s'` 0" 
+- check your commits before you push them somewhere, use git log -n 1 to see the latest commit in native form.
+- you can save these scripts somewhere and link them to /usr/bin/gitcommit and /usr/bin/hgcommit to always use UTC if you use "gitcommit -m foo" instead of "git commit -m foo"
+gitcommit:
+#!/bin/sh
+TZ=UTC git commit -a --date="`date -u +'%s'`" "$@"
+hgcommit:
+#!/bin/sh
+hg commit --date "`date -u +'%s'` 0" "$@"
+
+TODO modify infocalypse to create the repository with hg fn-push -aggressive when there there is no edition found
+TODO test pulling and pushing to freenet://USK@/RepoName.R1/0, the original infocalypse version should use the default request/insert key. arnebab's fork generates a new URI?
+TODO ^ if this works one can actually push _and_ pull from the same remote (using the default key pair)
+TODO ^ add dummies like freenet://stored_someName/RepoName.R1/0 which would read insert and request key from some file and uses the request key for pull and the insert key for push
+TODO test pulling/pushing branches
+TODO rewrite simple_cgi_server in pure bash
+TODO additionally create a complete python implementation for portability to windows
+TODO check for insert/request key, don't allow pushing to request key, don't allow pulling from insert key
+TODO add hg fn-fmsnotify after pushing

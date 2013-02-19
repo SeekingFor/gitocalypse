@@ -1,0 +1,62 @@
+#!/bin/bash
+# $1 name of remote
+# $2 URI
+AUTHOR="SeekingFor";
+RELEASE_DATE="2013-02-19";
+VERSION_MAJOR=0;
+VERSION_MINOR=1;
+VERSION_RELEASE=0;
+while read -r line; do
+  if [ "${line:0:3}" = "GIT" ]; then
+    #echo "found GIT line: $line" >&2;
+    if [ "${line:0:7}" = "GIT_DIR" ]; then
+      gitDir="${line:8}";
+    elif [ "${line:0:10}" = "GIT_PREFIX" ]; then
+      gitPrefix="${line:11}";
+    elif [ "${line:0:30}" = "GIT_INTERNAL_GETTEXT_SH_SCHEME" ]; then
+      gitInternalGetTextShScheme="${line:31}";
+    elif [ "${line:0:17}" = "GIT_REFLOG_ACTION" ]; then
+      gitReflogAction="${line:18}";
+    else
+      echo "found unknown GIT env var: $line" >&2;
+    fi
+  fi
+done <<< "$(env)"
+if [ "$gitDir" = "" ]; then
+  gitDir=".git";
+fi
+repoDir="$(pwd)";
+infocalypseDir="$repoDir/$gitDir/infocalypse/$1";
+if [ "${2:0:10}" = "freenet://" ]; then
+  fn_key="${2:10}";
+elif [ "${2:0:14}" = "infocalypse://" ]; then
+  fn_key="${2:14}";
+else
+  echo "unknown freenet key. does not start with freenet:// or infocalypse://" >&2;
+  exit 1;
+fi
+mkdir -p "$infocalypseDir" 2>&1 >/dev/null;
+cd "$infocalypseDir" >&2;
+if [ "${gitReflogAction:0:4}" = "pull" ]; then      # pull repo from freenet
+  hg init 2>/dev/null;
+  hg fn-pull --aggressive --uri "$fn_key" >&2;      # update hg repo from freenet
+  hg bookmark --force --rev default master >&2;     # set bookmark named master for current head (default)
+  hg gexport >&2;                                   # export hg repo to hg_repo_dir/.hg/git
+elif ! [ -d ".hg" ]; then                           # we want to push and hg repo does not yet exist
+  hg clone "$repoDir" . >&2;                        # clone from main git repo
+  hg update null >&2;                               # remove working tree
+fi
+cd "$repoDir" >&2;
+simple_cgi_server "$infocalypseDir/.hg/git" &       # run git-http-backend to receive pull/push requests for hg_repo_dir/.hg/git
+backendPID=$!;                                      # get PID of background process
+sleep 1;                                            # git pull/push sends data to our stdin and reads data from stdout.
+echo "starting git-remote-http for $(pwd)" >&2;     # so we pipe our stdin to git-remote-http stdin and git-remote-http stdout into our stdout
+GIT_DIR="$gitDir" GIT_PREFIX="$gitPrefix" GIT_INTERNAL_GETTEXT_SH_SCHEME="$gitInternalGetTextShScheme" GIT_REFLOG_ACTION="$gitReflogAction" git remote-http http://127.0.0.1:48154/git <&0 >&1;
+kill $backendPID 2>&1 >/dev/null;                   # hg_repo_dir/.hg/git should be up to date. kill http-backend
+if ! [ "${gitReflogAction:0:4}" = "pull" ]; then    # push changes to freenet
+  cd "$infocalypseDir" >&2;
+  hg gimport >&2;                                   # update hg repo from hg_repo_dir/.hg/git
+  hg fn-push --aggressive --uri "$fn_key" >&2;      # TODO parse ~/.infocalypse to see if repo needs fn-create instead. or somehow fix infocalypse
+                                                    # TODO add hg fn-fmsnotify --something to announce update on FMS
+fi
+exit 0;
