@@ -57,6 +57,6 @@ if ! [ "${gitReflogAction:0:4}" = "pull" ]; then    # push changes to freenet
   cd "$infocalypseDir" >&2;
   hg gimport >&2;                                   # update hg repo from hg_repo_dir/.hg/git
   hg fn-push --aggressive --uri "$fn_key" >&2;      # TODO parse ~/.infocalypse to see if repo needs fn-create instead. or somehow fix infocalypse
-  hg fn-fmsnotify --announce                        # send a FMS message to announce the updated repo
+  hg fn-fmsnotify --announce >&2;                   # send a FMS message to announce the updated repo
 fi
 exit 0;
