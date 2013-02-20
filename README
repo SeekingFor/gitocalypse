@@ -13,6 +13,10 @@ ln -s /your/path/to/gitocalypse /usr/bin/git-remote-freenet
 ln -s /your/path/to/gitocalypse /usr/bin/git-remote-infocalypse
 ln -s /your/path/to/simple_cgi_server /usr/bin/
 
+warning: you will post a message to FMS every time you push to an infocalypse repo.
+- to disable this feature remove the line hg fn-fmsnotify --announce from gitocalypse.
+- if you don't provide FMS information to infocalypse it can't send the message either.
+
 testing:
 mkdir jfniki; cd jfniki; git init;
 git remote add --tags djk freenet://USK@kRM~jJVREwnN2qnA8R0Vt8HmpfRzBZ0j4rHC2cQ-0hw,2xcoQVdQLyqfTpF2DpkdUIbHFCeL4W~2X1phUYymnhM,AQACAAE/jfniki.R1/36;
@@ -48,19 +52,19 @@ git remote add --tags fn_push freenet://USK@yourInsertKey/someCrazyName.R1/0
 random hints:
 - you can also use infocalypse:// instead of freenet://
 - every freenet repo you want to push to just needs a single hg fn-create.
-  - if you want to push to your infocalypse repo from another location, just add the remote and push to it.
+- if you want to push to your infocalypse repo from another location, just add the remote and push to it.
 - for your infocalypse repos always use .R1 as last part of the repo name. infocalypse will then mirror the top block so there is one at .R0/x and another one at .R1/x
 - you don't need to update editions of freenet repos, every pull and push first tries to find the latest edition.
 - for a more verbose infocalypse output: in gitocalypse search for lines saying fn-pull or fn-push and add the argument --verbose before the --uri argument
 - you should use current versions of mercurial and git. if you use debian stable use the backports repo for both
 - installing gitocalypse does not require to link into /usr/bin, actually it does not matter at all as long as they are available in a directory from PATH
-  - the link to gitocalypse need to be named git-remote-freenet if you want to use freenet:// and git-remote-infocalypse if you want to use infocalypse://
+- the link to gitocalypse need to be named git-remote-freenet if you want to use freenet:// and git-remote-infocalypse if you want to use infocalypse://
 
 general advise for anonymous coders:
 - be aware of timezone leaks in your commits, git and mercurial save the configured timezone of your machine in every commit.
   - you can force git to use UTC with TZ=UTC git commit -a --date="`date -u +'%s'`"
   - likewise with hg: hg commit --date "`date -u +'%s'` 0" 
-- check your commits before you push them somewhere, use git log -n 1 to see the latest commit in native form.
+- check your commits before you push them, use git log -n 1 to see the latest commit.
 - you can save these scripts somewhere and link them to /usr/bin/gitcommit and /usr/bin/hgcommit to always use UTC if you use "gitcommit -m foo" instead of "git commit -m foo"
 gitcommit:
 #!/bin/sh
@@ -77,4 +81,3 @@ TODO test pulling/pushing branches
 TODO rewrite simple_cgi_server in pure bash
 TODO additionally create a complete python implementation for portability to windows
 TODO check for insert/request key, don't allow pushing to request key, don't allow pulling from insert key
-TODO add hg fn-fmsnotify after pushing
